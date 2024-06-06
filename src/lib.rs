@@ -1,3 +1,9 @@
+mod register;
+
+pub use register::*;
+
+pub type Value = i64;
+
 macro_rules! define_consts {
     ($($x:ident),+) => {
         define_consts!{0; $($x),*}
@@ -156,21 +162,21 @@ impl From<u32> for I9 {
 }
 
 pub struct VM {
-    reg: Vec<i64>,
+    reg: Registers,
     pc: usize,
-    cst: Vec<i64>,
+    cst: Vec<Value>,
 }
 
 impl VM {
     pub fn new() -> Self {
         VM {
-            reg: Vec::new(),
+            reg: Registers::new(),
             pc: 0,
             cst: Vec::new(),
         }
     }
 
-    pub fn execute(&mut self, code: &[u8], consts: Vec<i64>) -> Result<(), ()> {
+    pub fn execute(&mut self, code: &[u8], consts: Vec<Value>) -> Result<(), ()> {
         self.pc = 0;
         self.cst = consts;
 
@@ -185,26 +191,26 @@ impl VM {
                 OP_MOVE => break,
                 OP_LOAD => {
                     let (a, bx) = word.parse_a_bx();
-                    self.insert(a, self.cst[bx as usize]);
+                    self.reg.insert(a, self.cst[bx as usize]);
                 }
                 OP_MUL => {
                     let (a, b, c) = word.parse_a_b_c();
-                    self.insert(a, self.load(b) * self.load(c));
+                    self.reg.insert(a, self.load(b) * self.load(c));
                 }
                 OP_MOD => {
                     let (a, b, c) = word.parse_a_b_c();
-                    self.insert(a, self.load(b) % self.load(c));
+                    self.reg.insert(a, self.load(b) % self.load(c));
                 }
                 OP_FORPREP => {
                     let (a, bx) = word.parse_a_bx();
-                    self.reg[a as usize] -= 1;
+                    self.reg[a] -= 1;
                     self.pc += bx as usize;
                 }
                 OP_FORLOOP => {
                     let (a, bx) = word.parse_a_bx();
-                    self.reg[a as usize] += 1;
+                    self.reg[a] += 1;
 
-                    if self.reg[a as usize] < self.reg[a as usize + 1] {
+                    if self.reg[a] < self.reg[a + 1] {
                         self.pc -= bx as usize;
                     }
                 }
@@ -217,18 +223,9 @@ impl VM {
         Ok(())
     }
 
-    fn insert(&mut self, i: u8, v: i64) {
-        let i = i as usize;
-        if self.reg.len() == i {
-            self.reg.push(v);
-        } else {
-            self.reg[i] = v;
-        }
-    }
-
-    fn load(&self, addr: I9) -> i64 {
+    fn load(&self, addr: I9) -> Value {
         match addr {
-            I9::Reg(x) => self.reg[x as usize],
+            I9::Reg(x) => self.reg[x],
             I9::Cst(x) => self.cst[x as usize],
         }
     }
@@ -240,7 +237,7 @@ mod tests {
     use Instruction::*;
     use I9::*;
 
-    fn execute(insts: Vec<Instruction>, consts: Vec<i64>) {
+    fn execute(insts: Vec<Instruction>, consts: Vec<Value>) {
         let mut vm = VM::new();
         let code: Vec<_> = insts
             .into_iter()
