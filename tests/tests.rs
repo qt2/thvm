@@ -1,10 +1,7 @@
-use std::time::Instant;
+use thvm::{Instruction::*, Value::*, I9::*, *};
 
-use thvm::*;
-use Instruction::*;
-use I9::*;
-
-fn main() {
+#[test]
+fn test_arithmetic() {
     let insts = vec![
         Load(0, 0),
         Load(1, 0),
@@ -15,24 +12,17 @@ fn main() {
         ForLoop(1, 3),
         Return,
     ];
-    let consts = vec![1, 1000000, 100000007];
+    let consts = vec![Num(1.0), Num(1000000.0), Num(100000007.0)];
 
     execute(insts, consts);
 }
 
-fn execute(insts: Vec<Instruction>, consts: Vec<i64>) {
+fn execute(insts: Vec<Instruction>, consts: Vec<Value>) {
     let mut vm = VM::new();
     let code: Vec<_> = insts
         .into_iter()
         .map(|inst| Word::from(inst).0.to_be_bytes())
         .flatten()
         .collect();
-
-    let start = Instant::now();
-
     vm.execute(&code, consts).unwrap();
-
-    let duration = Instant::now() - start;
-
-    dbg!(&duration);
 }
